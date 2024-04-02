@@ -44,6 +44,11 @@ class Module:
     def getMqttClient(self) -> Mqtt:
         return self.mqttClient
 
+    def createNewTaskQueue(self) -> TaskQueue:
+        taskqueue = TaskQueue()
+        self.scheduler.scheduleEach(taskqueue.loop, 500)
+        return taskqueue
+
     def setup(self) -> None:
         self.scheduler.scheduleEach(self.mqttClient.loop, 500)
         self.scheduler.scheduleEach(self.config.loop, 60000)
@@ -59,6 +64,8 @@ class ShellyJalousien:
         self.mqttClient = module.getMqttClient()
         self.scheduler = module.getScheduler()
         self.config = {}
+        self.runtimeConfig = {}
+        self.module = module
 
     def setup(self) -> None:
 
@@ -75,12 +82,13 @@ class ShellyJalousien:
             jalousienName = Path(topic).name
             command = payload
             config = self.config.get(jalousienName)
+
             if config:
-                taskQueue = config.get('taskQueue')
+                taskQueue = self.runtimeConfig.get('taskQueue')
 
                 if not taskQueue:
-                    taskQueue = TaskQueue()
-                    config['taskQueue'] = taskQueue
+                    taskQueue = self.module.createNewTaskQueue()
+                    self.runtimeConfig['taskQueue'] = taskQueue
 
                 topicToSwitch = config['topic']
 
